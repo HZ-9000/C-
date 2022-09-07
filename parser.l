@@ -123,7 +123,7 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 "if"|"else"                          { return setValue(line, FLOW, yytext); }
 
-[A-Za-z]|[A-Za-z]+[A-Za-z0-9]        { return setValue(line, ID, yytext); }
+[A-Za-z][A-Za-z0-9]*                 { return setValue(line, ID, yytext); }
 
 "=="                                 { return setValue(line, EQ, yytext); }
 
