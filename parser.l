@@ -97,9 +97,6 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 	    upperCase(&svalue);
         yylval.tokenData->strvalue = strdup(svalue);
     }
-    else if(tokenClass == ID || tokenClass == ASSIGN || tokenClass == RELATION || tokenClass == EXTRA){
-        yylval.tokenData->strvalue = strdup(svalue);
-    }
     else if(tokenClass == NUMCONST){
         yylval.tokenData->nvalue = atoi(svalue);
     }
@@ -128,15 +125,25 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 [A-Za-z]|[A-Za-z]+[A-Za-z0-9]        { return setValue(line, ID, yytext); }
 
-"<-"|"+="|"-="|"*="|"/="|"="         { return setValue(line, ASSIGN, yytext); }
+"=="                                 { return setValue(line, EQ, yytext); }
 
-"<"|"<="|">"|">="|"="|"!="           { return setValue(line, RELATION, yytext); }
+">="                                 { return setValue(line, GEQ, yytext); }
+
+"<="                                 { return setValue(line, LEQ, yytext); }
+
+"!="                                 { return setValue(line, NEQ, yytext); }
+
+"<"|">"                              { return setValue(line, RELATION, yytext); }
+
+"<-"|"-="|"*="|"/="|"="              { return setValue(line, ASSIGN, yytext); }
+
+"+="                                 { return setValue(line, ADDASS, yytext); }
 
 "++"|"--"                            { return setValue(line, INCREMENT, yytext); }
 
 "##".*                               ;                                 
 
-[\%\*\(\)\+\-\[\]\:\;\<\>\?\,\/]     { return setValue(line, EXTRA, yytext); }
+[\%\*\(\)\+\-\[\]\:\;\<\>\?\,\/{}]   { return setValue(line, EXTRA, yytext); }
 
 [0-9]+                               { return setValue(line, NUMCONST, yytext); }
 
