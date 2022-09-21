@@ -1,9 +1,12 @@
 %{
 #include "scanType.h"
+#include "AST.h"
 #include "parser.tab.h"
 #include <string.h>
 int line = 1;
 int numErrors;
+int savedType;
+bool isStatic = false;
 
 void upperCase(char **s){
     int len;
@@ -21,28 +24,31 @@ static int setValue(int linenum, int tokenClass, char *svalue)
     yylval.tokenData->linenum = linenum;
     yylval.tokenData->tokenstr = strdup(svalue);
     
-    if(tokenClass == CHARCONST){ 
+    if(tokenClass == NUMCONST){
+        yylval.tokenData->nvalue = atoi(svalue);
+    }
+    else if(tokenClass == CHARCONST){ 
 	if(strlen(svalue) > 3){
 	    if(svalue[1] == '\\'){
 	        switch(svalue[2]){
 		    case '0':
 		        yylval.tokenData->cvalue = '\0';
-			    break;
+			break;
 		    case 'n':
-			    yylval.tokenData->cvalue = '\n';
-			    break;
+			yylval.tokenData->cvalue = '\n';
+			break;
 		    case '\\':
-			    yylval.tokenData->cvalue = '\\';
-			    break;
-		    default:
-			    yylval.tokenData->cvalue = svalue[2];
-			    break;
+			yylval.tokenData->cvalue = '\\';
+			break;
+		   default:
+			yylval.tokenData->cvalue = svalue[2];
+			break;
 		}
 	    }
 	    else
 	    {
 	        printf("WARNING(%d): character is %d characters long and not a single character: \'%s\'.  The first char will be used.\n", linenum, int(strlen(svalue) - 2), svalue);
-		    yylval.tokenData->cvalue = svalue[1];
+		yylval.tokenData->cvalue = svalue[1];
 	    }
 	}else{
             yylval.tokenData->cvalue = svalue[1];
@@ -54,7 +60,7 @@ static int setValue(int linenum, int tokenClass, char *svalue)
         char temps[int(strlen(svalue))] = {};
         for(len = 0; len < strlen(svalue); len++){
             if(svalue[len] == '\\'){
-		        switch(svalue[len + 1]){
+		switch(svalue[len + 1]){
                     case '0':
                         temps[count] = '\0'; 
                         break;
@@ -64,11 +70,11 @@ static int setValue(int linenum, int tokenClass, char *svalue)
                     case '\\':
                         temps[count] = '\\';
                         break;
-                    default:
+                   default:
                         temps[count] = svalue[len + 1];
                         break;
-                }
-                len++;
+                 }
+                 len++;
             }else{
                 temps[count] = svalue[len];
             }
@@ -77,6 +83,19 @@ static int setValue(int linenum, int tokenClass, char *svalue)
         temps[count] = '\0';
         yylval.tokenData->strvalue = strdup(temps);
     }
+    else if(tokenClass == ID){
+        yylval.tokenData->strvalue = strdup(svalue);
+    }
+    else if(tokenClass == TYPE){
+            if(svalue == "void"){savedType = 0; yylval.tokenData->nvalue = 0;}
+            else if(strcmp(svalue, "int") == 0){savedType = 1; yylval.tokenData->nvalue = 1;}
+            else if(strcmp(svalue, "bool") == 0){savedType = 2; yylval.tokenData->nvalue = 2;}
+            else if(strcmp(svalue, "char") == 0){savedType = 3; yylval.tokenData->nvalue = 3;}
+            else{savedType = 0;}
+    }
+    else if(tokenClass == STATIC){
+        isStatic = true;
+    }
     else if(tokenClass == BOOL){
 	if(svalue[0] == 't'){
 	    yylval.tokenData->nvalue = 1;
@@ -84,23 +103,6 @@ static int setValue(int linenum, int tokenClass, char *svalue)
             yylval.tokenData->nvalue = 0;
         }
     }
-    else if(tokenClass == INCREMENT){
-        if(svalue[1] == '+'){
-            char w[4] = "INC";
-	        yylval.tokenData->strvalue = strdup(w);
-        }else{
-            char w[4] = "DEC";
-            yylval.tokenData->strvalue = strdup(w);
-        }
-    }
-    else if(tokenClass == TYPE || tokenClass == LOOP || tokenClass == LOGIC || tokenClass == KEYWORD || tokenClass == FLOW){
-	    upperCase(&svalue);
-        yylval.tokenData->strvalue = strdup(svalue);
-    }
-    else if(tokenClass == NUMCONST){
-        yylval.tokenData->nvalue = atoi(svalue);
-    }
-
     return tokenClass;
 }
 
@@ -109,41 +111,60 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 %option noyywrap
 
 %%
-"int"|"bool"|"char"|"static"         { return setValue(line, TYPE, yytext); }
 
-"while"|"do"|"for"|"to"|"by"|"then"  { return setValue(line, LOOP, yytext); }
+"bool"|"int"|"char"|"void"           { return setValue(line, TYPE, yytext);}
 
-"and"|"or"|"not"                     { return setValue(line, LOGIC, yytext); }
+"+="|"-="|"*="|"/="|"="              { return setValue(line, ASSNG, yytext);}
+
+">="|"<="|"!="|"=="|[<>]             { return setValue(line, REL, yytext);} 
+
+\*                                   { return setValue(line, MUL, yytext);}
+
+\-                                   { return setValue(line, SUB, yytext);}
+
+[/%]                                 { return setValue(line, MULOP, yytext);}
+
+\?                                   { return setValue(line, UNARYOP, yytext);}
+
+\+                                   { return setValue(line, SUMOP, yytext);}
+
+"return"                             { return setValue(line, RETURN, yytext);}
+
+"if"                                 { return setValue(line, IF, yytext);}
+
+"then"                               { return setValue(line, THEN, yytext);}
+
+"else"                               { return setValue(line, ELSE, yytext);}
+
+"while"                              { return setValue(line, WHILE, yytext);}
+
+"do"                                 { return setValue(line, DO, yytext);}
+
+"for"                                { return setValue(line, FOR, yytext);}
+
+"static"                             { return setValue(line, STATIC, yytext);}
+
+"to"                                 { return setValue(line, TO, yytext);}
+
+"by"                                 { return setValue(line, BY, yytext);}
+
+"break"                              { return setValue(line, BREAK, yytext);}
+
+"or"                                 { return setValue(line, OR, yytext);}
+
+"and"                                 { return setValue(line, AND, yytext);}
+
+"not"                                 { return setValue(line, NOT, yytext);}
+
+"++"                                { return setValue(line, INC, yytext);}
+
+"--"                                { return setValue(line, DEC, yytext);}
 
 "false"|"true"                       { return setValue(line, BOOL, yytext); }
 
-"break"|"return"|"addasgn"           { return setValue(line, KEYWORD, yytext); }
+[A-Za-z]|[A-Za-z]+[A-Za-z0-9]        { return setValue(line, ID, yytext); }
 
-"begin"|"end"                        { return setValue(line, KEYWORD, yytext); }
-
-"if"|"else"                          { return setValue(line, FLOW, yytext); }
-
-[A-Za-z][A-Za-z0-9]*                 { return setValue(line, ID, yytext); }
-
-"=="                                 { return setValue(line, EQ, yytext); }
-
-">="                                 { return setValue(line, GEQ, yytext); }
-
-"<="                                 { return setValue(line, LEQ, yytext); }
-
-"!="                                 { return setValue(line, NEQ, yytext); }
-
-"<"|">"                              { return setValue(line, RELATION, yytext); }
-
-"<-"|"-="|"*="|"/="|"="              { return setValue(line, ASSIGN, yytext); }
-
-"+="                                 { return setValue(line, ADDASS, yytext); }
-
-"++"|"--"                            { return setValue(line, INCREMENT, yytext); }
-
-"##".*                               ;                                 
-
-[\%\*\(\)\+\-\[\]\:\;\<\>\?\,\/{}]   { return setValue(line, EXTRA, yytext); }
+"//".*                               ;                                 
 
 [0-9]+                               { return setValue(line, NUMCONST, yytext); }
 
@@ -153,7 +174,11 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 [ \t\f\v]                            ;
 
-\/\/.*                               ;
+"{"                                  { return setValue(line, LPARAN, yytext); }
+
+"}"                                  { return setValue(line, RPARAN, yytext); }
+
+[;,:\[\]\(\)]            			 { return yytext[0]; }
 
 \n                                   { line++; }
 
