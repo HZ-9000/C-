@@ -35,6 +35,7 @@ typedef struct treeNode
     bool isArray = false; // is this an array
     bool isStatic = false; // is staticly allocated?
     bool isInitialized = false;
+    VarKind var = None;
 } TreeNode;
 
 TreeNode * addStmtNode(StmtKind kind, int lineno);

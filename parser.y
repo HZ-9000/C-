@@ -95,7 +95,6 @@ varDeclInit   :  ID
                  $$->expType = setType(savedType);
                  $$->isArray = true;
                  $$->isStatic = isStatic;
-                 $$->isInitialized = true;
                  isStatic = false;
                  $$->attr.value = $3->nvalue;
                  $$->attr.name = strdup($1->strvalue);}
@@ -103,7 +102,6 @@ varDeclInit   :  ID
                 {$$ = addDeclNode(VarK, $1->linenum);
                  $$->expType = setType(savedType);
                  $$->isStatic = isStatic;
-                 $$->isInitialized = true;
                  isStatic = false;
                  $$->child[0] = $3;
                  $$->attr.name = strdup($1->strvalue);}
@@ -111,7 +109,6 @@ varDeclInit   :  ID
                 {$$ = addDeclNode(VarK, $1->linenum);
                  $$->expType = setType(savedType);
                  $$->isStatic = isStatic;
-                 $$->isInitialized = true;
                  isStatic = false;
                  $$->child[0] = $6;
                  $$->attr.value = $3->nvalue;
@@ -296,18 +293,15 @@ breakStmt   : BREAK ';'
 exp   :   mutable   ASSNG exp  
             {$$ = addExpNode(AssignK, $2->linenum, Equal);
              $$->attr.name = strdup($2->tokenstr);
-             $$->isInitialized = true;
              $$->child[0] = $1;
              $$->child[1] = $3;}
        |  mutable INC
             {$$ = addExpNode(AssignK, $2->linenum, Void);
              $$->attr.name = strdup($2->tokenstr);
-             $$->isInitialized = true;
              $$->child[0] = $1;}
        |  mutable DEC
             {$$ = addExpNode(AssignK, $2->linenum, Void);
              $$->attr.name = strdup($2->tokenstr);
-             $$->isInitialized = true;
              $$->child[0] = $1;}
        |  simpleExp
             {$$ = $1;}
