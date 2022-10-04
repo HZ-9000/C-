@@ -238,6 +238,17 @@ void * SymbolTable::lookup(std::string sym)
     return data;
 }
 
+void * SymbolTable::lookupCurrent(std::string sym)
+{
+    void *data;
+
+    data = stack.back()->lookup(sym);
+    if (debugFlg) printf("DEBUG(SymbolTable): lookup the symbol \"%s\" in the Globals and %s.\n", sym.c_str(),
+                         (data ? "found it" : "did NOT find it"));
+
+    return data;
+}
+
 
 // Lookup a symbol in the global scope
 // returns NULL if symbol not found, otherwise it returns the stored void * associated with the symbol

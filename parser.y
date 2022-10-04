@@ -388,7 +388,6 @@ mutable   : ID
                  $$->attr.name = strdup($1->strvalue);}
            | name '['  exp  ']'
                 {$$ = addExpNode(OpK, line, Void);
-                 $$->isArray = true;
                  $$->child[0] = $1;
                  $$->child[1] = $3;
                  $$->attr.name = strdup("[");}

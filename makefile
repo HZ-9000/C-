@@ -1,7 +1,7 @@
 BIN = parser
 CC = g++
 
-SRCS = $(BIN).y  $(BIN).l AST.cpp main.cpp error.cpp semantic.cpp
+SRCS = $(BIN).y  $(BIN).l AST.cpp main.cpp error.cpp semantic.cpp symbolTable.cpp
 HDRS = scanType.h AST.h symbolTable.h semantic.h
 OBJS = lex.yy.o $(BIN).tab.o AST.o main.o semantic.o symbolTable.o error.o
 
