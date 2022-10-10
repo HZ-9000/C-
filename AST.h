@@ -35,6 +35,7 @@ typedef struct treeNode
     bool isArray = false; // is this an array
     bool isStatic = false; // is staticly allocated?
     bool isInitialized = false;
+    bool isUsed = false;
     VarKind var = None;
 } TreeNode;
 
@@ -51,4 +52,4 @@ TreeNode *addSibling(TreeNode *t, TreeNode *s);
 // Passes the isStatic and type attributes down the sibling list.
 ExpType setType(int count);
 
-void printTree(TreeNode *t, int count);
+void printTree(TreeNode *t, int count, bool types);

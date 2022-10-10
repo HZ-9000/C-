@@ -140,11 +140,33 @@ static char *printType(ExpType type)
   return types;
 }
 
+static char *printTypeString(ExpType type, bool ret)
+{
+  char *types;
+  char *temp = strdup("");
+  if (type == Void)
+    types = strdup("of type void ");
+  else if (type == Integer)
+    types = strdup("of type int ");
+  else if (type == Char)
+    types = strdup("of type char ");
+  else if (type == Boolean)
+    types = strdup("of type bool ");
+  else if (type == CharInt)
+    types = strdup("of type charint ");
+  else if (type == Equal)
+    types = strdup("of type equal ");
+  else
+    types = strdup("of undefined type ");
+
+  return (ret ? types : temp);
+}
+
 int childCount = 0;
 bool isChild = false;
 bool isSibling = false;
 
-void printTree(TreeNode *tree, int count)
+void printTree(TreeNode *tree, int count, bool types)
 {
   int i;
   INDENT;
@@ -197,25 +219,24 @@ void printTree(TreeNode *tree, int count)
       switch (tree->subkind.exp)
       {
       case OpK:
-        printf("Op: %s [line: %d]\n", tree->attr.name, tree->lineno);
+        printf("Op: %s %s[line: %d]\n", tree->attr.name, printTypeString(tree->expType, types), tree->lineno);
         break;
       case ConstantK:
         if (tree->expType == Integer)
-          printf("Const %d [line: %d]\n", tree->attr.value, tree->lineno);
+          printf("Const %d %s[line: %d]\n", tree->attr.value, printTypeString(tree->expType, types), tree->lineno);
         else if (tree->expType == Boolean)
           if (tree->attr.value == 1)
-            printf("Const %s [line: %d]\n", "true", tree->lineno);
+            printf("Const %s %s[line: %d]\n", "true", printTypeString(tree->expType, types), tree->lineno);
           else
-            printf("Const %s [line: %d]\n", "false", tree->lineno);
+            printf("Const %s %s[line: %d]\n", "false", printTypeString(tree->expType, types), tree->lineno);
         else
-          printf("Const %s [line: %d]\n", tree->attr.string, tree->lineno);
+          printf("Const %s %s[line: %d]\n", tree->attr.string, printTypeString(tree->expType, types), tree->lineno);
         break;
       case IdK:
-        printf("Id: %s [line: %d]\n", tree->attr.name, tree->lineno);
+        printf("Id: %s %s[line: %d]\n", tree->attr.name, printTypeString(tree->expType, types), tree->lineno);
         break;
       case AssignK:
-        tree->child[0]->isInitialized = true;
-        printf("Assign: %s [line: %d]\n", tree->attr.name, tree->lineno);
+        printf("Assign: %s %s[line: %d]\n", tree->attr.name, printTypeString(tree->expType, types), tree->lineno);
         break;
       case CallK:
         printf("Call: %s [line: %d]\n", tree->attr.name, tree->lineno);
@@ -234,9 +255,7 @@ void printTree(TreeNode *tree, int count)
       {
       case VarK:
         if (tree->isArray)
-          printf("Var: %s of array of type %s [line: %d]\n", tree->attr.name, printType(tree->expType), tree->lineno);
-        else if (tree->isStatic)
-          printf("Var: %s of static type %s [line: %d]\n", tree->attr.name, printType(tree->expType), tree->lineno);
+          printf("Var: %s is array of type %s [line: %d]\n", tree->attr.name, printType(tree->expType), tree->lineno);
         else
           printf("Var: %s of type %s [line: %d]\n", tree->attr.name, printType(tree->expType), tree->lineno);
         break;
@@ -261,7 +280,7 @@ void printTree(TreeNode *tree, int count)
       isChild = true;
       isSibling = false;
       childCount = i;
-      printTree(tree->child[i], count);
+      printTree(tree->child[i], count, types);
       isChild = false;
     }
     tree = tree->sibling;

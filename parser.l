@@ -162,7 +162,7 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 "false"|"true"                       { return setValue(line, BOOL, yytext); }
 
-[A-Za-z]|[A-Za-z]+[A-Za-z0-9]        { return setValue(line, ID, yytext); }
+[A-Za-z][A-Za-z0-9]*                 { return setValue(line, ID, yytext); }
 
 "//".*                               ;                                 
 

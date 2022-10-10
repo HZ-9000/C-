@@ -241,11 +241,10 @@ void * SymbolTable::lookup(std::string sym)
 void * SymbolTable::lookupCurrent(std::string sym)
 {
     void *data;
-
-    data = stack.back()->lookup(sym);
-    if (debugFlg) printf("DEBUG(SymbolTable): lookup the symbol \"%s\" in the Globals and %s.\n", sym.c_str(),
+    std::vector<Scope *>::reverse_iterator it=stack.rbegin();
+    data = (*it)->lookup(sym);
+    if (debugFlg) printf("DEBUG(SymbolTable): lookup the symbol \"%s\" in the local scope %s.\n", sym.c_str(),
                          (data ? "found it" : "did NOT find it"));
-
     return data;
 }
 

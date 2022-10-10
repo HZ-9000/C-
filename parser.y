@@ -296,11 +296,11 @@ exp   :   mutable   ASSNG exp
              $$->child[0] = $1;
              $$->child[1] = $3;}
        |  mutable INC
-            {$$ = addExpNode(AssignK, $2->linenum, Void);
+            {$$ = addExpNode(AssignK, $2->linenum, Integer);
              $$->attr.name = strdup($2->tokenstr);
              $$->child[0] = $1;}
        |  mutable DEC
-            {$$ = addExpNode(AssignK, $2->linenum, Void);
+            {$$ = addExpNode(AssignK, $2->linenum, Integer);
              $$->attr.name = strdup($2->tokenstr);
              $$->child[0] = $1;}
        |  simpleExp

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include "semantic.h"
 
-int errorCount = 0;
-int warningCount = 0;
+extern int errorCount;
+extern int warningCount;
 extern int line;
 
 void printErrorMessage(int index, char *string1, char *string2, char *string3, int linenum)

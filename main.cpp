@@ -9,11 +9,15 @@ extern int yyparse();
 extern FILE *yyin;
 extern int yydebug;
 extern int numErrors;
+extern int warningCount;
+extern int errorCount;
 
 int main(int argc, char *argv[])
 {
     int i;
     bool printAST = false;
+    bool printASTAnnotated = false;
+    bool symTabDebug = false;
     if (argc > 1)
     {
         if (argc >= 2)
@@ -26,7 +30,7 @@ int main(int argc, char *argv[])
                 }
                 else if (strcmp(argv[i], "-D") == 0)
                 {
-                    // do stuff
+                    symTabDebug = true;
                 }
                 else if (strcmp(argv[i], "-h") == 0)
                 {
@@ -45,27 +49,30 @@ int main(int argc, char *argv[])
                 }
                 else if (strcmp(argv[i], "-P") == 0)
                 {
-                    printAST = true;
+                    printASTAnnotated = true;
                 }
             }
         }
         if ((yyin = fopen(argv[argc - 1], "r")))
         {
-            // success
+            yyparse();
+            if (printAST)
+                printTree(tree, 0, false);
+
+            semanticAnalysis(tree, symTabDebug);
+
+            if (printASTAnnotated && errorCount == 0)
+                printTree(tree, 0, true);
         }
         else
         {
             // fail
-            printf("ERROR: failed to open \'%s\'\n", argv[1]);
-            return 0;
+            printf("ERROR(ARGLIST): source file \"%s\" could not be opened.\n", argv[argc-1]);
+            errorCount++;
         }
     }
 
-    numErrors = 0;
-    yyparse();
-    if (printAST)
-        printTree(tree, 0);
-
-    semanticAnalysis(tree, true);
+    printf("Number of warnings: %d\n", warningCount);
+    printf("Number of errors: %d\n", errorCount);
     return 0;
 }

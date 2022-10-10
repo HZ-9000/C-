@@ -1,9 +1,10 @@
 BIN = parser
 CC = g++
+CFLAGS = -g
 
-SRCS = $(BIN).y  $(BIN).l AST.cpp main.cpp error.cpp semantic.cpp symbolTable.cpp
+SRCS = $(BIN).y  $(BIN).l AST.cpp main.cpp semantic.cpp symbolTable.cpp
 HDRS = scanType.h AST.h symbolTable.h semantic.h
-OBJS = lex.yy.o $(BIN).tab.o AST.o main.o semantic.o symbolTable.o error.o
+OBJS = lex.yy.o $(BIN).tab.o AST.o main.o semantic.o symbolTable.o
 
 $(BIN) : $(OBJS)
 	$(CC) $(OBJS) -o c-
@@ -13,9 +14,6 @@ main.o: main.cpp semantic.h
 
 semantic.o: semantic.cpp semantic.h
 	$(CC) $(CFLAGS) -c semantic.cpp
-
-error.o: error.cpp semantic.h 
-	$(CC) $(CFLAGS) -c error.cpp
 
 AST.o: AST.cpp AST.h 
 	$(CC) $(CFLAGS) -c AST.cpp
