@@ -7,8 +7,8 @@ int errorCount = 0;
 int warningCount = 0;
 
 std::unordered_set<std::string> sameOps = {"==", "<=", ">=", "!=", "<", ">", "="};
-std::unordered_set<std::string> intOps = {"+=", "-=", "/=", "*=", "+", "*", "-", "/", "%", "?", "++", "--"};
-std::unordered_set<std::string> unaryOps = {"?", "chsign", "not", "--"};
+std::unordered_set<std::string> intOps = {"sizeof","+=", "-=", "/=", "*=", "+", "*", "-", "/", "%", "?", "++", "--"};
+std::unordered_set<std::string> unaryOps = {"?", "chsign", "not", "--", "++"};
 std::unordered_set<std::string> arrayOps = {"sizeof"};
 
 SymbolTable symtab = SymbolTable();
@@ -77,7 +77,6 @@ bool nestedArr(TreeNode *arr)
 
     return false;
 }
-
 void semanticAnalysis(TreeNode *tree, bool debug)
 {
     symtab.debug(debug);
@@ -156,10 +155,14 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                 if (tree->child[0] != NULL && tree->child[0]->subkind.exp == IdK)
                 {
                     TreeNode *entry = (TreeNode *)symtab.lookup(tree->child[0]->attr.name);
-                    if (entry != NULL && entry->isArray)
+                    if (entry != NULL)
                     {
-                        printf("ERROR(%d): Cannot return an array.\n", tree->lineno);
-                        errorCount++;
+                        entry->isUsed = true;
+                        if (entry->isArray)
+                        {
+                            printf("ERROR(%d): Cannot return an array.\n", tree->lineno);
+                            errorCount++;
+                        }
                     }
                 }
                 for (int i = 0; i < MAXCHILDREN; i++)
@@ -170,16 +173,19 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
             case BreakK:
                 break;
             case RangeK:
+                //isScope = true;
+                //symtab.enter(std::string("Range-" + std::to_string(scope_count++)));
                 for (int i = 0; i < MAXCHILDREN; i++)
                 {
                     if (tree->child[i] != NULL && tree->child[i]->subkind.exp == IdK)
+                    {
                         tree->child[i]->expType = UndefinedType;
+                    }
                 }
                 break;
             case ForK:
-                isScope = true;
-                isFunc = true; // also skip next compound
-                symtab.enter(std::string("For_Loop-" + std::to_string(scope_count++)));
+                //isScope = true;
+                //symtab.enter(std::string("For_Loop-" + std::to_string(scope_count++)));
                 // branch
                 for (int i = 0; i < MAXCHILDREN; i++)
                 {
@@ -187,8 +193,8 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                 }
                 break;
             case WhileK:
-                isScope = true;
-                symtab.enter(std::string("While_Loop-" + std::to_string(scope_count++)));
+                //isScope = true;
+                //symtab.enter(std::string("While_Loop-" + std::to_string(scope_count++)));
                 // branch
                 for (int i = 0; i < MAXCHILDREN; i++)
                 {
@@ -239,15 +245,18 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                         {
                             proccessOP(tree, 0);
                             TreeNode *entry = (TreeNode *)symtab.lookup(tree->child[0]->attr.name);
-                            entry->isUsed = true;
-                            if (tree->isInitialized)
-                                entry->isInitialized = true;
                             lhs = entry;
+
+                            if (!lhs->isArray && arrayOps.find(tree->attr.name) != arrayOps.end())
+                            {
+                                printf("ERROR(%d): The operation '%s' only works with arrays.\n", tree->lineno, tree->attr.name);
+                                errorCount++;
+                            }
                         }
                         else
                             undeclared = true;
-                        
-                        if(tree->attr.name[0] == '[' && undeclared)
+
+                        if (tree->attr.name[0] == '[' && undeclared)
                         {
                             printf("ERROR(%d): Cannot index nonarray '%s'.\n", tree->lineno, tree->child[0]->attr.name);
                             errorCount++;
@@ -260,10 +269,10 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                         {
                             proccessOP(tree->child[0], 0);
                             lhs = (TreeNode *)symtab.lookup(tree->child[0]->child[0]->attr.name);
-                            lhs->isUsed = true;
+                            tree->expType = lhs->expType;
                             if (tree->child[0]->child[1]->expType == Integer)
-                                array_indexed = true;
-                        }
+                                array_indexed = true;   
+                        }                
                         else
                             undeclared = true;
                     }
@@ -290,7 +299,7 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                     // leaf
                     if (tree->child[1]->subkind.exp == IdK)
                     {
-                        if (!proccessID(tree->child[1], false))
+                        if (!proccessID(tree->child[1], true))
                         {
                             proccessOP(tree, 1);
                             rhs = (TreeNode *)symtab.lookup(tree->child[1]->attr.name);
@@ -305,7 +314,6 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                         {
                             proccessOP(tree->child[1], 0);
                             rhs = (TreeNode *)symtab.lookup(tree->child[1]->child[0]->attr.name);
-                            rhs->isUsed = true;
                             if (tree->child[1]->child[1]->expType == Integer)
                                 array_indexed = true;
                         }
@@ -332,6 +340,11 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                                    tree->lineno, tree->attr.name, printType(lhs->expType), printType(rhs->expType));
                             errorCount++;
                         }
+                    }
+                    else if ((lhs->isArray || rhs->isArray) && !array_indexed && arrayOps.find(tree->attr.name) == arrayOps.end() && tree->attr.name[0] != '[')
+                    {
+                        printf("ERROR(%d): The operation '%s' does not work with arrays.\n", tree->lineno, tree->attr.name);
+                        errorCount++;
                     }
                 }
             }
@@ -374,7 +387,6 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                         if (!proccessID(tree->child[0], false))
                         {
                             lhs = (TreeNode *)symtab.lookup(tree->child[0]->attr.name);
-                            lhs->isUsed = true;
 
                             if (sameOps.find(tree->attr.name) != sameOps.end())
                                 tree->expType = lhs->expType;
@@ -405,7 +417,6 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                         if (!proccessID(tree->child[0]->child[0], false))
                         {
                             lhs = (TreeNode *)symtab.lookup(tree->child[0]->child[0]->attr.name);
-                            lhs->isUsed = true;
                             lhs->isInitialized = true;
                             if (sameOps.find(tree->attr.name) != sameOps.end())
                                 tree->expType = lhs->expType;
@@ -435,7 +446,6 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                         if (!proccessID(tree->child[1], true))
                         {
                             rhs = (TreeNode *)symtab.lookup(tree->child[1]->attr.name);
-                            rhs->isUsed = true;
                         }
                         else
                             undeclared = true;
@@ -443,9 +453,12 @@ void symtabTraverse(TreeNode *tree, bool isFunc)
                     // is an array
                     else if (tree->child[1]->subkind.exp == OpK && tree->child[1]->attr.name[0] == '[')
                     {
-                        array_indexed = nestedArr(tree->child[1]);
-                        rhs = (TreeNode *)symtab.lookup(tree->child[1]->child[0]->attr.name);
-                        rhs->isUsed = true;
+                        if (!proccessID(tree->child[1]->child[0], true))
+                        {
+                            rhs = (TreeNode *)symtab.lookup(tree->child[1]->child[0]->attr.name);
+                        }
+                        else
+                            undeclared = true;
                     }
                     else
                         symtabTraverse(tree->child[1], isFunc);
@@ -506,9 +519,9 @@ bool proccessID(TreeNode *tree, bool warn)
         errorCount++;
         errored = true;
     }
-    else if (warn && currEntry != NULL && currEntry->subkind.decl == VarK && !currEntry->isInitialized && !currEntry->isStatic)
+    else if (warn && currEntry != NULL && currEntry->subkind.decl == VarK && !currEntry->isInitialized && !currEntry->isStatic && !currEntry->isUsed)
     {
-        // printf("WARNING(%d): Variable '%s' may be uninitialized when used here.\n", tree->lineno, tree->attr.name);
+        printf("WARNING(%d): Variable '%s' may be uninitialized when used here.\n", tree->lineno, tree->attr.name);
         warningCount++;
     }
     else
@@ -518,6 +531,8 @@ bool proccessID(TreeNode *tree, bool warn)
 
     if (entry != NULL)
         entry->isUsed = true;
+    if (currEntry != NULL)
+        currEntry->isUsed = true;
 
     return errored;
 }
@@ -562,6 +577,11 @@ void proccessOP(TreeNode *tree, int child_no)
             printf("ERROR(%d): '%s' requires operands of %s but lhs is of %s.\n", tree->lineno, tree->attr.name, printType(tree->expType), printType(child->expType));
             errorCount++;
         }
+        if (child->isArray && unaryOps.find(tree->attr.name) != unaryOps.end())
+        {
+            printf("ERROR(%d): The operation '%s' does not work with arrays.\n", tree->lineno, tree->attr.name);
+            errorCount++;
+        }
     }
     else if (child_no == 1)
     {
@@ -570,15 +590,5 @@ void proccessOP(TreeNode *tree, int child_no)
             printf("ERROR(%d): '%s' requires operands of %s but rhs is of %s.\n", tree->lineno, tree->attr.name, printType(tree->expType), printType(child->expType));
             errorCount++;
         }
-    }
-    if (!child->isArray && arrayOps.find(tree->attr.name) != arrayOps.end() && tree->attr.name[0] != '[')
-    {
-        printf("ERROR(%d): The operation '%s' only works with arrays.\n", tree->lineno, tree->attr.name);
-        errorCount++;
-    }
-    else if (child->isArray && arrayOps.find(tree->attr.name) == arrayOps.end() && tree->attr.name[0] != '[')
-    {
-        printf("ERROR(%d): The operation '%s' does not work with arrays.\n", tree->lineno, tree->attr.name);
-        errorCount++;
     }
 }
