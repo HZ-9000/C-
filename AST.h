@@ -36,6 +36,7 @@ typedef struct treeNode
     bool isStatic = false; // is staticly allocated?
     bool isInitialized = false;
     bool isUsed = false;
+    bool warned = false;
     VarKind var = None;
 } TreeNode;
 

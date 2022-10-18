@@ -35,13 +35,13 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 		        yylval.tokenData->cvalue = '\0';
 			break;
 		    case 'n':
-			yylval.tokenData->cvalue = '\n';
+			    yylval.tokenData->cvalue = '\n';
 			break;
 		    case '\\':
-			yylval.tokenData->cvalue = '\\';
+			    yylval.tokenData->cvalue = '\\';
 			break;
-		   default:
-			yylval.tokenData->cvalue = svalue[2];
+		    default:
+			    yylval.tokenData->cvalue = svalue[2];
 			break;
 		}
 	    }
