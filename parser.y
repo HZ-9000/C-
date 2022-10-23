@@ -88,7 +88,6 @@ varDeclInit   :  ID
                 {$$ = addDeclNode(VarK, $1->linenum);
                  $$->attr.name = strdup($1->strvalue);
                  $$->isStatic = isStatic;
-                 isStatic = false;
                  $$->expType = setType(savedType);}
               |  ID '[' NUMCONST ']'
                 {$$ = addDeclNode(VarK, $1->linenum);
