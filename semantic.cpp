@@ -49,6 +49,55 @@ void checkUsed(std::string sym, void *ptr)
 void semanticAnalysis(TreeNode *tree, bool debug)
 {
     symtab.debug(debug);
+
+    TreeNode * IntParam = addDeclNode(ParamK, -1);
+    IntParam->expType = Integer;
+
+    TreeNode * CharParam = addDeclNode(ParamK, -1);
+    IntParam->expType = Char;
+
+    TreeNode * BoolParam = addDeclNode(ParamK, -1);
+    IntParam->expType = Boolean;    
+
+    //insert symbols for I/O 
+    TreeNode *output = addDeclNode(FuncK, -1);
+    output->attr.name = strdup("output");
+    output->expType = Void;
+    output->child[0] = IntParam;
+    symtab.insert(output->attr.name, output);
+
+    TreeNode *outputb = addDeclNode(FuncK, -1);
+    outputb->attr.name = strdup("outputb");
+    outputb->expType = Void;
+    outputb->child[0] = BoolParam;
+    symtab.insert(outputb->attr.name, outputb);
+
+    TreeNode *outputc = addDeclNode(FuncK, -1);
+    outputc->attr.name = strdup("outputc");
+    outputc->expType = Void;
+    outputc->child[0] = CharParam;
+    symtab.insert(outputc->attr.name, outputc);
+
+    TreeNode *input = addDeclNode(FuncK, -1);
+    input->attr.name = strdup("input");
+    input->expType = Integer;
+    symtab.insert(input->attr.name, input);
+
+    TreeNode *inputb = addDeclNode(FuncK, -1);
+    inputb->attr.name = strdup("inputb");
+    inputb->expType = Boolean;
+    symtab.insert(inputb->attr.name, inputb);
+
+    TreeNode *inputc = addDeclNode(FuncK, -1);
+    inputc->attr.name = strdup("inputc");
+    inputc->expType = Char;
+    symtab.insert(inputc->attr.name, inputc);
+
+    TreeNode *outnl = addDeclNode(FuncK, -1);
+    outnl->attr.name = strdup("outnl");
+    outnl->expType = Char;
+    symtab.insert(outnl->attr.name, outnl);
+
     symtabTraverse(tree, false, true);
 }
 
@@ -110,6 +159,11 @@ void symtabTraverse(TreeNode *tree, bool isFunc, bool warn)
                 }
                 break;
             case BreakK:
+                if(!symtab.checkLoop())
+                {
+                    printf("ERROR(%d): Cannot have a break statement outside of loop.\n", tree->lineno);
+                    errorCount++;
+                }
                 break;
             case RangeK:
                 break;
@@ -359,6 +413,12 @@ void proccessOP(TreeNode *tree)
                    tree->lineno, tree->attr.name, printType(tree->child[0]->expType), printType(tree->child[1]->expType));
             errorCount++;
         }
+        if(tree->child[0]->isArray != tree->child[1]->isArray)
+        {
+            printf("ERROR(%d): '%s' requires both operands be arrays or not but lhs is %s and rhs is %s.\n",
+                tree->lineno, tree->attr.name, (tree->child[0]->isArray ? "an array" : "not an array"), (tree->child[1]->isArray ? "an array" : "not an array"));
+            errorCount++;
+        }
     }
     else
     {
@@ -372,7 +432,7 @@ void proccessOP(TreeNode *tree)
             proccessLandR(tree, false, true, tree->expType);
         }
 
-        if(tree->child[0]->isArray || tree->child[0]->isArray)
+        if(tree->child[0]->isArray || tree->child[1]->isArray)
         {
             printf("ERROR(%d): The operation '%s' does not work with arrays.\n", tree->lineno, tree->attr.name);
             errorCount++;

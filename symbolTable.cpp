@@ -307,6 +307,18 @@ void SymbolTable::applyToAllGlobal(void (*action)(std::string , void *))
     stack[0]->applyToAll(action);
 }
 
+bool SymbolTable::checkLoop()
+{
+    std::string name;
+
+    for (std::vector<Scope *>::reverse_iterator it=stack.rbegin(); it!=stack.rend(); it++) {
+        name = (*it)->scopeName();
+        if (name == "For" || "While") return true;
+    }
+
+    return false;
+}
+
 
 
 
