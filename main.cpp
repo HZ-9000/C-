@@ -1,6 +1,7 @@
 #include "scanType.h"
 #include "symbolTable.h"
 #include "semantic.h"
+#include "yyerror.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -18,6 +19,7 @@ int main(int argc, char *argv[])
     bool printAST = false;
     bool printASTAnnotated = false;
     bool symTabDebug = false;
+    initErrorProcessing();
     if (argc > 1)
     {
         if (argc >= 2)
@@ -56,23 +58,27 @@ int main(int argc, char *argv[])
         if ((yyin = fopen(argv[argc - 1], "r")))
         {
             yyparse();
-            if (printAST)
-                printTree(tree, 0, false);
 
-            semanticAnalysis(tree, symTabDebug);
+            if(numErrors == 0)
+            {
+                if (printAST)
+                    printTree(tree, 0, false);
+                
+                semanticAnalysis(tree, symTabDebug);
 
-            if (printASTAnnotated && errorCount == 0)
-                printTree(tree, 0, true);
+                if (printASTAnnotated && errorCount == 0)
+                    printTree(tree, 0, true);
+            }
         }
         else
         {
             // fail
             printf("ERROR(ARGLIST): source file \"%s\" could not be opened.\n", argv[argc-1]);
-            errorCount++;
+            numErrors++;
         }
     }
 
     printf("Number of warnings: %d\n", warningCount);
-    printf("Number of errors: %d\n", errorCount);
+    printf("Number of errors: %d\n", numErrors);
     return 0;
 }

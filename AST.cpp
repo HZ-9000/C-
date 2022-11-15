@@ -4,6 +4,25 @@
 #include "AST.h"
 using namespace std;
 
+extern int numErrors;
+
+TreeNode *addSibling(TreeNode *t, TreeNode *s)
+{
+    if (s==NULL && numErrors==0) {
+        printf("ERROR(SYSTEM): never add a NULL to a sibling list.\n");
+        exit(1);
+    }
+    if (t!=NULL) { 
+        TreeNode *tmp;
+
+        tmp = t;
+        while (tmp->sibling!=NULL) tmp = tmp->sibling;
+        tmp->sibling = s; 
+        return t;
+    }
+    return s;
+}
+
 TreeNode *addStmtNode(StmtKind kind, int lineno)
 {
   TreeNode *t = new TreeNode;
@@ -57,27 +76,6 @@ TreeNode *addExpNode(ExpKind kind, int lineno, ExpType type)
     t->expType = type;
   }
   return t;
-}
-
-// Adds a TreeNode to a list of siblings.
-// Adding a NULL node to the sibling list is probably a programming error!
-TreeNode *addSibling(TreeNode *t, TreeNode *s)
-{
-  if (s == NULL)
-  {
-    printf("ERROR(SYSTEM): never add a NULL to a sibling list.\n");
-    exit(1);
-  }
-  if (t != NULL)
-  {
-    TreeNode *tmp;
-    tmp = t;
-    while (tmp->sibling != NULL)
-      tmp = tmp->sibling;
-    tmp->sibling = s;
-    return t;
-  }
-  return s;
 }
 
 // Passes the isStatic and type attributes down the sibling list.

@@ -2,9 +2,9 @@ BIN = parser
 CC = g++
 CFLAGS = -g
 
-SRCS = $(BIN).y  $(BIN).l AST.cpp main.cpp semantic.cpp symbolTable.cpp
-HDRS = scanType.h AST.h symbolTable.h semantic.h
-OBJS = lex.yy.o $(BIN).tab.o AST.o main.o semantic.o symbolTable.o
+SRCS = $(BIN).y  $(BIN).l AST.cpp main.cpp semantic.cpp symbolTable.cpp yyerror.cpp
+HDRS = scanType.h AST.h symbolTable.h semantic.h yyerror.h
+OBJS = lex.yy.o $(BIN).tab.o AST.o main.o semantic.o symbolTable.o yyerror.o
 
 $(BIN) : $(OBJS)
 	$(CC) $(OBJS) -o c-
@@ -20,6 +20,9 @@ AST.o: AST.cpp AST.h
 
 symbolTable.o: symbolTable.cpp symbolTable.h
 	$(CC) $(CFLAGS) -c symbolTable.cpp
+
+yyerror.o: yyerror.cpp yyerror.h 
+	$(CC) $(CFLAGS) -c yyerror.cpp
 
 lex.yy.c : $(BIN).l $(BIN).tab.h $(HDR)
 	flex $(BIN).l

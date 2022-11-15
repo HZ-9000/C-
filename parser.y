@@ -1,23 +1,17 @@
 %{
+#define YYERROR_VERBOSE
+#include "yyerror.h"
 #include  "scanType.h"
 #include  "AST.h"
 #include  <stdio.h> 
+#include  <stdlib.h> 
 #include  <string.h> 
 #include  <stdbool.h>
 
 extern int yylex();
-extern int line;
-extern int numErrors;
 extern int savedType;
 extern bool isStatic;
 TreeNode *tree;
-
-#define YYERROR_VERBOSE
-void yyerror(const char *msg)
-{
-    printf("ERROR(%d): %s\n", line, msg);
-    numErrors++;
-}
 
 %}
  
@@ -26,10 +20,12 @@ void yyerror(const char *msg)
     TreeNode *treeNode;
 }
 
-%token  <tokenData>  NUMCONST STRINGCONST CHARCONST ID BOOL TYPE
+%token  <tokenData>  NUMCONST STRINGCONST CHARCONST ID BOOLCONST
 %token  <tokenData>  LPARAN RPARAN REL RETURN IF THEN ELSE 
 %token  <tokenData>  FOR WHILE DO STATIC TO BY BREAK INC DEC ASSNG
 %token  <tokenData>  OR AND NOT SUMOP MULOP UNARYOP MUL SUB
+%token  <tokenData>  INT CHAR VOID BOOL ADDASS MULASS DIVASS SUBASS
+%token  <tokenData>  GEQ LEQ NEQ EQ
 
 %type <treeNode>  declList decl varDeclList varDeclInit parmIdList
 %type <treeNode>  parmList parmId stmt non_if compoundStmt open_stmt 
@@ -38,51 +34,37 @@ void yyerror(const char *msg)
 %type <treeNode>  mulExp sumExp factor immutable constant mutable
 %type <treeNode>  localDecls varDecl scopedVarDecl call args parms 
 %type <treeNode>  parmTypeList argList funDecl expStmt stmtList
+%type <tokenData>  typeSpec assignOp relOp
 
 %%
 program   :  declList              
                 {tree = $1;}
            ;
-declList   :  declList   decl      
-                {TreeNode * t = $1;
-                    if (t != NULL)
-                    {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $2;
-                        $$ = $1;
-                    }
-                    else 
-                        $$ = $2;    
-                }
+declList   :  declList   decl    { $$ = addSibling($1, $2); }
             |  decl   {$$ = $1;}                
             ;
 decl   :  varDecl   {$$ = $1;}     
         |  funDecl  {$$ = $1;}
+        |  error    {$$ = NULL;}
         ;
-varDecl   :  TYPE  varDeclList  ';' 
-                {$$ = $2;}
+varDecl   :  typeSpec  varDeclList  ';' {$$ = $2; yyerrok;}
+          |  error varDeclList ';'  {$$ = NULL; yyerrok;}
+          |  typeSpec  error ';'        {$$ = NULL; yyerrok;}
            ;
-scopedVarDecl   :  STATIC  TYPE   varDeclList  ';' 
-                        {$$ = $3;}
-                 |  TYPE   varDeclList ';' 
-                        {$$ = $2;}   
+typeSpec  : BOOL { $$ = $1; }
+          | CHAR { $$ = $1; }
+          | INT  { $$ = $1; }
+          | VOID { $$ = $1; }
+          ;
+scopedVarDecl   :  STATIC  typeSpec   varDeclList  ';' 
+                        {$$ = $3; yyerrok;}
+                 |  typeSpec   varDeclList ';' 
+                        {$$ = $2; yyerrok;}   
                  ;
-varDeclList   :  varDeclList  ','  varDeclInit  
-                    {
-                    TreeNode * t = $1;
-                    if (t != NULL)
-                    {
-                        while(t->sibling != NULL){
-                            t = t->sibling;
-                        }
-                        t->sibling = $3;
-                        $$ = $1;
-                    }
-                    else 
-                        {$$ = $3;}    
-                }
-               | varDeclInit   {$$ = $1;}
+varDeclList   :  varDeclList  ','  varDeclInit  { $$ = addSibling($1, $3); yyerrok; }
+              | varDeclInit   {$$ = $1;}
+              |  varDeclList ',' error  {$$ = NULL; } 
+               | error  {$$ = NULL; }
                ;
 varDeclInit   :  ID 
                 {$$ = addDeclNode(VarK, $1->linenum);
@@ -113,8 +95,11 @@ varDeclInit   :  ID
                  $$->attr.value = $3->nvalue;
                  $$->attr.name = strdup($1->strvalue);
                  $$->isArray = true;}
+              | ID '[' error  { $$ = NULL; }
+              | error ']'   { $$ = NULL; yyerrok; }
+              | error ':' simpleExp { $$ = NULL; yyerrok; }
               ;
-funDecl   :  TYPE  ID '(' parms ')' compoundStmt 
+funDecl   :  typeSpec  ID '(' parms ')' compoundStmt 
                 {$$ = addDeclNode(FuncK, $1->linenum);
                  $$->attr.name = strdup($2->strvalue);
                  $$->expType = setType($1->nvalue);
@@ -125,44 +110,29 @@ funDecl   :  TYPE  ID '(' parms ')' compoundStmt
                  $$->child[0] = $3;
                  $$->child[1] = $5;
                  $$->attr.name = strdup($1->strvalue);}
+            | typeSpec error                          { $$ = NULL; }
+              | typeSpec ID '(' error                   { $$ = NULL; }
+              | ID '(' error                            { $$ = NULL; }
+              | ID '(' parms ')' error                  { $$ = NULL; }
            ;
 parms   :  parmList  
             {$$ = $1;}
          |  %empty
             {$$=NULL;}
          ;
-parmList   :  parmList  ';'  parmTypeList  
-                    {TreeNode *t = $1;
-                    if (t != NULL)
-                    {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $3;
-                        $$ = $1;
-                    }
-                    else 
-                        $$ = $3;    
-                }
-            | parmTypeList
-                    {$$ = $1;}
+parmList   :  parmList  ';'  parmTypeList  { $$ = addSibling($1, $3); yyerrok; }
+            | parmTypeList   {$$ = $1;}
+            | parmList ';' error                      { $$ = NULL; }
+              | error                                   { $$ = NULL; }
             ;
-parmTypeList   :  TYPE   parmIdList 
+parmTypeList   :  typeSpec   parmIdList 
                     {$$ = $2;}
+               | typeSpec error                          { $$ = NULL; }
                 ; 
-parmIdList   :  parmIdList  ','  parmId  
-                    {TreeNode *t = $1;
-                    if (t != NULL)
-                    {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $3;
-                        $$ = $1;
-                    }
-                    else 
-                        $$ = $3;    
-                }
-              |  parmId
-                    {$$ = $1;}
+parmIdList   : parmIdList ',' parmId                   { $$ = addSibling($1, $3); yyerrok; }
+              |  parmId {$$ = $1;}
+              | parmIdList ',' error                    { $$ = NULL; }
+              | error                                   { $$ = NULL; }
               ; 
 parmId   : ID  
                 {$$ = addDeclNode(ParamK, $1->linenum);
@@ -197,7 +167,8 @@ expStmt   :  exp  ';'
 compoundStmt   : LPARAN  localDecls   stmtList  RPARAN
                     {$$ = addStmtNode(CompoundK, $1->linenum);
                      $$->child[0] = $2;
-                     $$->child[1] = $3;}
+                     $$->child[1] = $3;
+                     yyerrok;}
                ;
 localDecls   :  localDecls   scopedVarDecl  
                     {TreeNode *t = $1;
@@ -242,11 +213,16 @@ open_stmt    : IF  simpleExp  THEN  stmt
                 {$$ = addStmtNode(WhileK, $1->linenum);
                  $$->child[0] = $2;
                  $$->child[1] = $4;}
-             | FOR forName ASSNG iterRange  DO  open_stmt
+             | FOR forName assignOp iterRange  DO  open_stmt
                 {$$ = addStmtNode(ForK, $1->linenum);
                  $$->child[0] = $2;
                  $$->child[1] = $4;
                  $$->child[2] = $6;}
+            | IF error THEN stmt                 { $$ = NULL; yyerrok; }
+            | IF error ELSE open_stmt             { $$ = NULL; yyerrok; }
+            | IF error THEN closed_stmt ELSE open_stmt { $$ = NULL; yyerrok; }
+            | WHILE error DO open_stmt            { $$ = NULL; yyerrok; }
+            | FOR forName assignOp error DO open_stmt      { $$ = NULL; yyerrok; }
              ; 
 closed_stmt   : non_if
               | IF  simpleExp  THEN  closed_stmt  ELSE  closed_stmt
@@ -258,11 +234,18 @@ closed_stmt   : non_if
                     {$$ = addStmtNode(WhileK, $1->linenum);
                      $$->child[0] = $2;
                      $$->child[1] = $4;}
-              | FOR forName ASSNG iterRange  DO  closed_stmt
+              | FOR forName assignOp iterRange  DO  closed_stmt
                     {$$ = addStmtNode(ForK, $1->linenum);
                      $$->child[0] = $2;
                      $$->child[1] = $4;
                      $$->child[2] = $6;}
+              | IF error                            { $$ = NULL; }
+	      | IF error ELSE closed_stmt               { $$ = NULL; yyerrok; }
+	      | IF error THEN closed_stmt ELSE closed_stmt  { $$ = NULL; yyerrok; }
+	      | WHILE error DO closed_stmt              { $$ = NULL; yyerrok; }
+	      | WHILE error                         { $$ = NULL; }
+	      | FOR forName assignOp error DO closed_stmt        { $$ = NULL; yyerrok; }
+	      | FOR error                           { $$ = NULL; }
               ;
 forName     : ID 
                 {$$ = addDeclNode(VarK, $1->linenum);
@@ -278,18 +261,23 @@ iterRange   :  simpleExp  TO  simpleExp
                  $$->child[0] = $1;
                  $$->child[1] = $3;
                  $$->child[2] = $5;}
+            | simpleExp TO error                      { $$ = NULL; }
+              | error BY error                          { $$ = NULL; yyerrok; }
+              | simpleExp TO simpleExp BY error         { $$ = NULL; }
             ;
 returnStmt   : RETURN ';' 
                 {$$ = addStmtNode(ReturnK, $1->linenum);}
              | RETURN  exp  ';'
                 {$$ = addStmtNode(ReturnK, $1->linenum);
-                 $$->child[0] = $2;}
+                 $$->child[0] = $2;
+                 yyerrok;}
+             | RETURN error ';'          { $$ = NULL; yyerrok; }
              ;
 breakStmt   : BREAK ';'
                 {$$ = addStmtNode(BreakK, $1->linenum);}
             ;
 //-----------------------------------------------------
-exp   :   mutable   ASSNG exp  
+exp   :   mutable   assignOp exp  
             {$$ = addExpNode(AssignK, $2->linenum, Equal);
              $$->attr.name = strdup($2->tokenstr);
              $$->child[0] = $1;
@@ -304,7 +292,17 @@ exp   :   mutable   ASSNG exp
              $$->child[0] = $1;}
        |  simpleExp
             {$$ = $1;}
+        | error assignOp exp                      { $$ = NULL; yyerrok; }
+              | mutable assignOp error                  { $$ = NULL; }
+              | error INC                               { $$ = NULL; yyerrok; }
+              | error DEC                               { $$ = NULL; yyerrok; }
        ; 
+assignOp : MULASS { $$ = $1; }
+         | ADDASS { $$ = $1; }
+         | SUBASS { $$ = $1; }
+         | DIVASS { $$ = $1; }
+         | ASSNG { $$ = $1; }
+         ;
 simpleExp   :  simpleExp  OR  andExp  
                     {$$ = addExpNode(OpK, $2->linenum, Boolean);
                      $$->attr.name = strdup($2->tokenstr);
@@ -312,6 +310,7 @@ simpleExp   :  simpleExp  OR  andExp
                      $$->child[1] = $3;}
              |  andExp
                     {$$ = $1;}
+             | simpleExp OR error  { $$ = NULL; };
              ; 
 andExp   :  andExp  AND  unaryRelExp 
                 {$$ = addExpNode(OpK, $2->linenum, Boolean);
@@ -320,6 +319,7 @@ andExp   :  andExp  AND  unaryRelExp
                  $$->child[1] = $3;}
           |  unaryRelExp
                 {$$ = $1;}
+          | andExp AND error { $$ = NULL; }
           ; 
 unaryRelExp   : NOT  unaryRelExp 
                     {$$ = addExpNode(OpK, $1->linenum, Boolean);
@@ -327,8 +327,9 @@ unaryRelExp   : NOT  unaryRelExp
                      $$->child[0] = $2;}
                |  relExp
                     {$$ = $1;}
+                | NOT error  { $$ = NULL; }
                ; 
-relExp   :  sumExp   REL   sumExp 
+relExp   :  sumExp   relOp   sumExp 
                 {$$ = addExpNode(OpK, $2->linenum, Boolean);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
@@ -336,6 +337,12 @@ relExp   :  sumExp   REL   sumExp
           |  sumExp
                 {$$ = $1;}
           ; 
+relOp    :  REL  { $$ = $1; }
+         |  GEQ  { $$ = $1; }
+         |  LEQ  { $$ = $1; }
+         |  NEQ  { $$ = $1; }
+         |  EQ   { $$ = $1; }
+         ;
 sumExp   :  sumExp   SUMOP   mulExp 
                 {$$ = addExpNode(OpK, $2->linenum, Integer);
                  $$->attr.name = strdup($2->tokenstr);
@@ -348,6 +355,8 @@ sumExp   :  sumExp   SUMOP   mulExp
                  $$->child[1] = $3;}
           |  mulExp
                 {$$ = $1;}
+          | sumExp SUMOP error { $$ = NULL; }
+          | sumExp SUB error { $$ = NULL; }
           ;
 mulExp   :  mulExp   MULOP   unaryExp 
                 {$$ = addExpNode(OpK, $2->linenum, Integer);
@@ -361,6 +370,8 @@ mulExp   :  mulExp   MULOP   unaryExp
                  $$->child[1] = $3;}
           |  unaryExp
                 {$$ = $1;}
+          | mulExp MULOP error { $$ = NULL; }
+          | mulExp MUL error { $$ = NULL; }
           ;
 unaryExp   :  UNARYOP unaryExp
                 {$$ = addExpNode(OpK, $1->linenum, Integer);
@@ -376,6 +387,9 @@ unaryExp   :  UNARYOP unaryExp
                  $$->child[0] = $2;}
             |  factor
                 {$$ = $1;}
+            | UNARYOP error { $$ = NULL; }
+            | MUL error { $$ = NULL; }
+            | SUB error { $$ = NULL; }
             ; 
 factor   :  mutable  
                 {$$ = $1;}
@@ -396,34 +410,26 @@ name       : ID
                  $$->attr.name = strdup($1->strvalue);}
            ;
 immutable   : '('  exp  ')' 
-                {$$ = $2;}
+                {$$ = $2; yyerrok; }
              |  call  
                     {$$ = $1;}
              |  constant
                     {$$ = $1;}
+              | '(' error  { $$ = NULL; }
              ; 
 call   : ID '('  args  ')'
             {$$ = addExpNode(CallK, $1->linenum, Void);
              $$->attr.name = strdup($1->strvalue);
              $$->child[0] = $3;}
+        | error '('   { $$ = NULL; yyerrok; }
         ;
 args   : argList  
             {$$ = $1;}
         | %empty
             {$$=NULL;}
         ;
-argList   :  argList  ','  exp 
-                {TreeNode *t = $1;
-                    if (t != NULL)
-                    {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $3;
-                        $$ = $1;
-                    }
-                    else 
-                        $$ = $3;    
-                }
+argList   :  argList  ','  exp  { $$ = addSibling($1, $3); yyerrok; }
+          | argList ',' error  { $$=NULL; }
            |  exp
                 {$$ = $1;}
            ; 
@@ -437,7 +443,7 @@ constant   : NUMCONST
                 {$$ = addExpNode(ConstantK, $1->linenum, Char);
                  $$->attr.string = strdup($1->strvalue);
                  $$->isArray = true;}
-            | BOOL
+            | BOOLCONST
                 {$$ = addExpNode(ConstantK, $1->linenum, Boolean);
                  $$->attr.value = $1->nvalue;}
             ; 

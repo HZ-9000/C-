@@ -7,6 +7,7 @@ int line = 1;
 int numErrors;
 int savedType;
 bool isStatic = false;
+char *lastToken;
 
 void upperCase(char **s){
     int len;
@@ -20,6 +21,8 @@ void upperCase(char **s){
 static int setValue(int linenum, int tokenClass, char *svalue)
 {
     yylval.tokenData = new TokenData;
+
+    lastToken = strdup(svalue);
     
     yylval.tokenData->linenum = linenum;
     yylval.tokenData->tokenstr = strdup(svalue);
@@ -86,7 +89,7 @@ static int setValue(int linenum, int tokenClass, char *svalue)
     else if(tokenClass == ID){
         yylval.tokenData->strvalue = strdup(svalue);
     }
-    else if(tokenClass == TYPE){
+    else if(tokenClass == BOOL || tokenClass == INT || tokenClass == CHAR || tokenClass == VOID){
             if(svalue == "void"){savedType = 0; yylval.tokenData->nvalue = 0;}
             else if(strcmp(svalue, "int") == 0){savedType = 1; yylval.tokenData->nvalue = 1;}
             else if(strcmp(svalue, "bool") == 0){savedType = 2; yylval.tokenData->nvalue = 2;}
@@ -96,13 +99,14 @@ static int setValue(int linenum, int tokenClass, char *svalue)
     else if(tokenClass == STATIC){
         isStatic = true;
     }
-    else if(tokenClass == BOOL){
+    else if(tokenClass == BOOLCONST){
 	if(svalue[0] == 't'){
 	    yylval.tokenData->nvalue = 1;
         }else{
             yylval.tokenData->nvalue = 0;
         }
     }
+
     return tokenClass;
 }
 
@@ -112,11 +116,33 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 %%
 
-"bool"|"int"|"char"|"void"           { return setValue(line, TYPE, yytext);}
+"bool"                               { return setValue(line, BOOL, yytext);}
 
-"+="|"-="|"*="|"/="|"="              { return setValue(line, ASSNG, yytext);}
+"int"                                { return setValue(line, INT, yytext);}
 
-">="|"<="|"!="|"=="|[<>]             { return setValue(line, REL, yytext);} 
+"char"                               { return setValue(line, CHAR, yytext);}
+
+"void"                               { return setValue(line, VOID, yytext);}
+
+"+="                                 { return setValue(line, ADDASS, yytext);}
+
+"-="                                 { return setValue(line, SUBASS, yytext);}
+
+"*="                                 { return setValue(line, MULASS, yytext);}
+
+"/="                                 { return setValue(line, DIVASS, yytext);}
+
+"="                                  { return setValue(line, ASSNG, yytext);}
+
+">="                                 { return setValue(line, GEQ, yytext);} 
+
+"<="                                 { return setValue(line, LEQ, yytext);} 
+
+"!="                                 { return setValue(line, NEQ, yytext);} 
+
+"=="                                 { return setValue(line, EQ, yytext);} 
+
+[<>]                                 { return setValue(line, REL, yytext);} 
 
 \*                                   { return setValue(line, MUL, yytext);}
 
@@ -160,7 +186,7 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 "--"                                { return setValue(line, DEC, yytext);}
 
-"false"|"true"                       { return setValue(line, BOOL, yytext); }
+"false"|"true"                       { return setValue(line, BOOLCONST, yytext); }
 
 [A-Za-z][A-Za-z0-9]*                 { return setValue(line, ID, yytext); }
 
@@ -180,7 +206,8 @@ static int setValue(int linenum, int tokenClass, char *svalue)
 
 [;,:\[\]\(\)]            			 { return yytext[0]; }
 
+[^\n]                                { printf("ERROR(%d): Invalid or misplaced input character: \'%c\'. Character Ignored.\n", line, yytext[0]); numErrors++; }
+
 \n                                   { line++; }
 
-.                                    { printf("ERROR(%d): Invalid or misplaced input character: \'%c\'. Character Ignored.\n", line, yytext[0]); numErrors++; }
 %%
