@@ -11,7 +11,6 @@ extern FILE *yyin;
 extern int yydebug;
 extern int numErrors;
 extern int warningCount;
-extern int errorCount;
 
 int main(int argc, char *argv[])
 {
@@ -19,6 +18,7 @@ int main(int argc, char *argv[])
     bool printAST = false;
     bool printASTAnnotated = false;
     bool symTabDebug = false;
+    bool printMemory = false;
     initErrorProcessing();
     if (argc > 1)
     {
@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
                     printf("-h          - print this usage message\n");
                     printf("-p          - print the abstract syntax tree\n");
                     printf("-P          - print the abstract syntax tree plus type information\n");
+                    printf("-M          - print the abstract syntax tree plus memory information\n");
                     return 0;
                 }
                 else if (strcmp(argv[i], "-p") == 0)
@@ -52,22 +53,29 @@ int main(int argc, char *argv[])
                 else if (strcmp(argv[i], "-P") == 0)
                 {
                     printASTAnnotated = true;
+                    printAST = true;
+                }
+                else if (strcmp(argv[i], "-M") == 0)
+                {
+                    printMemory = true;
+                    printASTAnnotated = true;
+                    printAST = true;
                 }
             }
         }
         if ((yyin = fopen(argv[argc - 1], "r")))
         {
+            printf("====================================\n");
+            printf("FILE: %s\n", argv[argc - 1]);
             yyparse();
 
             if(numErrors == 0)
             {
-                if (printAST)
-                    printTree(tree, 0, false);
                 
                 semanticAnalysis(tree, symTabDebug);
 
-                if (printASTAnnotated && errorCount == 0)
-                    printTree(tree, 0, true);
+                if (printAST && numErrors == 0)
+                    printTree(tree, 0, printASTAnnotated, printMemory);
             }
         }
         else

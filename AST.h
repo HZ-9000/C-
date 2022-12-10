@@ -38,13 +38,15 @@ typedef struct treeNode
     bool isUsed = false;
     bool warned = false;
     VarKind var = None;
+    int size = 0;
+    int loc = 0;
 } TreeNode;
 
-TreeNode * addStmtNode(StmtKind kind, int lineno);
+TreeNode * addStmtNode(StmtKind kind, int lineno, int size, int loc);
 
-TreeNode * addDeclNode(DeclKind kind, int lineno);
+TreeNode * addDeclNode(DeclKind kind, int lineno, int size, int loc);
 
-TreeNode * addExpNode(ExpKind kind, int lineno, ExpType type);
+TreeNode * addExpNode(ExpKind kind, int lineno, ExpType type, int size, int loc);
     
 // Adds a TreeNode to a list of siblings.
 // Adding a NULL node to the sibling list is probably a programming error!
@@ -53,4 +55,4 @@ TreeNode *addSibling(TreeNode *t, TreeNode *s);
 // Passes the isStatic and type attributes down the sibling list.
 ExpType setType(int count);
 
-void printTree(TreeNode *t, int count, bool types);
+void printTree(TreeNode *t, int count, bool types, bool memory);

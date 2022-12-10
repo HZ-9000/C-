@@ -3,8 +3,10 @@
 #include <string>
 #include <unordered_set>
 
-int errorCount = 0;
+extern int numErrors;
 int warningCount = 0;
+int foffset = 0;
+int goffset = 0;
 
 std::unordered_set<std::string> intOps = {"++", "--", "+", "-", "*", "/", "sizeof", "?", "chsign", "%"};
 std::unordered_set<std::string> boolOps = {"==", "!=", "<", ">", "<=", ">=", "not", "or", "and"};
@@ -50,50 +52,50 @@ void semanticAnalysis(TreeNode *tree, bool debug)
 {
     symtab.debug(debug);
 
-    TreeNode * IntParam = addDeclNode(ParamK, -1);
+    TreeNode *IntParam = addDeclNode(ParamK, -1, 1, 1);
     IntParam->expType = Integer;
 
-    TreeNode * CharParam = addDeclNode(ParamK, -1);
+    TreeNode *CharParam = addDeclNode(ParamK, -1, 1, 1);
     IntParam->expType = Char;
 
-    TreeNode * BoolParam = addDeclNode(ParamK, -1);
-    IntParam->expType = Boolean;    
+    TreeNode *BoolParam = addDeclNode(ParamK, -1, 1, 1);
+    IntParam->expType = Boolean;
 
-    //insert symbols for I/O 
-    TreeNode *output = addDeclNode(FuncK, -1);
+    // insert symbols for I/O
+    TreeNode *output = addDeclNode(FuncK, -1, 1, 1);
     output->attr.name = strdup("output");
     output->expType = Void;
     output->child[0] = IntParam;
     symtab.insert(output->attr.name, output);
 
-    TreeNode *outputb = addDeclNode(FuncK, -1);
+    TreeNode *outputb = addDeclNode(FuncK, -1, 1, 1);
     outputb->attr.name = strdup("outputb");
     outputb->expType = Void;
     outputb->child[0] = BoolParam;
     symtab.insert(outputb->attr.name, outputb);
 
-    TreeNode *outputc = addDeclNode(FuncK, -1);
+    TreeNode *outputc = addDeclNode(FuncK, -1, 1, 1);
     outputc->attr.name = strdup("outputc");
     outputc->expType = Void;
     outputc->child[0] = CharParam;
     symtab.insert(outputc->attr.name, outputc);
 
-    TreeNode *input = addDeclNode(FuncK, -1);
+    TreeNode *input = addDeclNode(FuncK, -1, 1, 1);
     input->attr.name = strdup("input");
     input->expType = Integer;
     symtab.insert(input->attr.name, input);
 
-    TreeNode *inputb = addDeclNode(FuncK, -1);
+    TreeNode *inputb = addDeclNode(FuncK, -1, 1, 1);
     inputb->attr.name = strdup("inputb");
     inputb->expType = Boolean;
     symtab.insert(inputb->attr.name, inputb);
 
-    TreeNode *inputc = addDeclNode(FuncK, -1);
+    TreeNode *inputc = addDeclNode(FuncK, -1, 1, 1);
     inputc->attr.name = strdup("inputc");
     inputc->expType = Char;
     symtab.insert(inputc->attr.name, inputc);
 
-    TreeNode *outnl = addDeclNode(FuncK, -1);
+    TreeNode *outnl = addDeclNode(FuncK, -1, 1, 1);
     outnl->attr.name = strdup("outnl");
     outnl->expType = Char;
     symtab.insert(outnl->attr.name, outnl);
@@ -108,6 +110,22 @@ void symtabTraverse(TreeNode *tree, bool isFunc, bool warn)
     while (tree != NULL)
     {
         bool isScope = false;
+
+        if (symtab.depth() > 1 && tree->subkind.decl != ParamK)
+        {
+            foffset -= tree->size;
+            tree->loc = foffset;
+            if (tree->isStatic)
+                tree->var = LocalStatic;
+            else
+                tree->var = Local;
+        }
+        else if (symtab.depth() == 1 && tree->subkind.decl != ParamK)
+        {
+            goffset -= tree->size;
+            tree->loc = goffset;
+            tree->var = Global;
+        }
         if (tree->nodekind == DeclK)
         {
             if (tree->subkind.decl == VarK && tree->child[0] != NULL || tree->subkind.decl == ParamK)
@@ -118,7 +136,7 @@ void symtabTraverse(TreeNode *tree, bool isFunc, bool warn)
             if (!symtab.insert(tree->attr.name, tree))
             {
                 printf("ERROR(%d): Symbol '%s' is already declared at line %d.\n", tree->lineno, tree->attr.name, point->lineno);
-                errorCount++;
+                numErrors++;
             }
             else
             {
@@ -159,10 +177,10 @@ void symtabTraverse(TreeNode *tree, bool isFunc, bool warn)
                 }
                 break;
             case BreakK:
-                if(!symtab.checkLoop())
+                if (!symtab.checkLoop())
                 {
                     printf("ERROR(%d): Cannot have a break statement outside of loop.\n", tree->lineno);
-                    errorCount++;
+                    numErrors++;
                 }
                 break;
             case RangeK:
@@ -212,9 +230,9 @@ void symtabTraverse(TreeNode *tree, bool isFunc, bool warn)
             switch (tree->subkind.exp)
             {
             case OpK:
-                if(tree->isInitialized)
+                if (tree->isInitialized)
                     tree->child[0]->isInitialized = true;
-                    
+
                 symtabTraverse(tree->child[0], isFunc, warn);
                 symtabTraverse(tree->child[1], isFunc, warn);
                 proccessOP(tree);
@@ -251,14 +269,14 @@ bool proccessLandR(TreeNode *tree, bool left, bool right, ExpType type)
     {
         printf("ERROR(%d): '%s' requires operands of %s but rhs is of %s.\n",
                tree->lineno, tree->attr.name, printType(type), printType(tree->child[1]->expType));
-        errorCount++;
+        numErrors++;
         return false;
     }
     if (left && tree->child[0]->expType != type && tree->child[0]->expType != UndefinedType)
     {
         printf("ERROR(%d): '%s' requires operands of %s but lhs is of %s.\n",
                tree->lineno, tree->attr.name, printType(type), printType(tree->child[0]->expType));
-        errorCount++;
+        numErrors++;
         return false;
     }
 
@@ -273,7 +291,7 @@ void proccessID(TreeNode *tree, bool warn)
     if (entry == NULL)
     {
         printf("ERROR(%d): Symbol '%s' is not declared.\n", tree->lineno, tree->attr.name);
-        errorCount++;
+        numErrors++;
         tree->expType = UndefinedType;
     }
     else
@@ -281,7 +299,7 @@ void proccessID(TreeNode *tree, bool warn)
         if (entry->subkind.decl == FuncK)
         {
             printf("ERROR(%d): Cannot use function '%s' as a variable.\n", tree->lineno, tree->attr.name);
-            errorCount++;
+            numErrors++;
         }
         else
         {
@@ -309,12 +327,12 @@ void proccessCALL(TreeNode *tree)
     if (entry == NULL)
     {
         printf("ERROR(%d): Symbol '%s' is not declared.\n", tree->lineno, tree->attr.name);
-        errorCount++;
+        numErrors++;
     }
-    else if(entry->subkind.decl != FuncK)
+    else if (entry->subkind.decl != FuncK)
     {
         printf("ERROR(%d): '%s' is a simple variable and cannot be called.\n", tree->lineno, tree->attr.name);
-        errorCount++;
+        numErrors++;
     }
     else
     {
@@ -324,8 +342,8 @@ void proccessCALL(TreeNode *tree)
 }
 
 void proccessASSNG(TreeNode *tree, bool isFunc)
-{   
-    if(strcmp(tree->attr.name, "++") != 0)
+{
+    if (strcmp(tree->attr.name, "++") != 0)
         tree->child[0]->isInitialized = true;
 
     symtabTraverse(tree->child[0], isFunc, true);
@@ -343,13 +361,13 @@ void proccessASSNG(TreeNode *tree, bool isFunc)
         {
             printf("ERROR(%d): '%s' requires operands of the same type but lhs is %s and rhs is %s.\n",
                    tree->lineno, tree->attr.name, printType(tree->child[0]->expType), printType(tree->child[1]->expType));
-            errorCount++;
+            numErrors++;
         }
         if (tree->child[0]->isArray != tree->child[1]->isArray)
         {
             printf("ERROR(%d): '%s' requires both operands be arrays or not but lhs is %s and rhs is %s.\n",
                    tree->lineno, tree->attr.name, (tree->child[0]->isArray ? "an array" : "not an array"), (tree->child[1]->isArray ? "an array" : "not an array"));
-            errorCount++;
+            numErrors++;
         }
     }
 }
@@ -368,41 +386,41 @@ void proccessOP(TreeNode *tree)
         if (!tree->child[0]->isArray)
         {
             printf("ERROR(%d): Cannot index nonarray '%s'.\n", tree->lineno, tree->child[0]->attr.name);
-            errorCount++;
+            numErrors++;
         }
-        if(tree->child[1]->expType != Integer && tree->child[1]->expType != UndefinedType)
+        if (tree->child[1]->expType != Integer && tree->child[1]->expType != UndefinedType)
         {
-            printf("ERROR(%d): Array '%s' should be indexed by type int but got type %s.\n", 
-                    tree->lineno, tree->child[0]->attr.name, printType(tree->child[1]->expType));
-            errorCount++;
+            printf("ERROR(%d): Array '%s' should be indexed by type int but got type %s.\n",
+                   tree->lineno, tree->child[0]->attr.name, printType(tree->child[1]->expType));
+            numErrors++;
         }
         if (tree->child[1]->isArray)
         {
             printf("ERROR(%d): Array index is the unindexed array '%s'.\n", tree->lineno, tree->child[1]->attr.name);
-            errorCount++;
+            numErrors++;
         }
     }
-    else if(strcmp(tree->attr.name, "sizeof") == 0)
+    else if (strcmp(tree->attr.name, "sizeof") == 0)
     {
-        if(tree->child[0] == NULL || !tree->child[0]->isArray)
+        if (tree->child[0] == NULL || !tree->child[0]->isArray)
         {
             printf("ERROR(%d): The operation '%s' only works with arrays.\n", tree->lineno, tree->attr.name);
-            errorCount++;
+            numErrors++;
         }
     }
     else if (unaryOps.find(tree->attr.name) != unaryOps.end())
     {
         if (tree->child[0]->expType != tree->expType)
         {
-            printf("ERROR(%d): Unary '%s' requires an operand of %s but was given %s.\n", 
-                    tree->lineno, tree->attr.name, printType(tree->expType), printType(tree->child[0]->expType));
-            errorCount++;
+            printf("ERROR(%d): Unary '%s' requires an operand of %s but was given %s.\n",
+                   tree->lineno, tree->attr.name, printType(tree->expType), printType(tree->child[0]->expType));
+            numErrors++;
         }
 
-        if(tree->child[0]->isArray)
+        if (tree->child[0]->isArray)
         {
             printf("ERROR(%d): The operation '%s' does not work with arrays.\n", tree->lineno, tree->attr.name);
-            errorCount++;
+            numErrors++;
         }
     }
     else if (sameOps.find(tree->attr.name) != sameOps.end())
@@ -411,13 +429,13 @@ void proccessOP(TreeNode *tree)
         {
             printf("ERROR(%d): '%s' requires operands of the same type but lhs is %s and rhs is %s.\n",
                    tree->lineno, tree->attr.name, printType(tree->child[0]->expType), printType(tree->child[1]->expType));
-            errorCount++;
+            numErrors++;
         }
-        if(tree->child[0]->isArray != tree->child[1]->isArray)
+        if (tree->child[0]->isArray != tree->child[1]->isArray)
         {
             printf("ERROR(%d): '%s' requires both operands be arrays or not but lhs is %s and rhs is %s.\n",
-                tree->lineno, tree->attr.name, (tree->child[0]->isArray ? "an array" : "not an array"), (tree->child[1]->isArray ? "an array" : "not an array"));
-            errorCount++;
+                   tree->lineno, tree->attr.name, (tree->child[0]->isArray ? "an array" : "not an array"), (tree->child[1]->isArray ? "an array" : "not an array"));
+            numErrors++;
         }
     }
     else
@@ -426,16 +444,16 @@ void proccessOP(TreeNode *tree)
         {
             proccessLandR(tree, true, false, tree->expType);
         }
-        
+
         if (tree->child[1] != NULL)
         {
             proccessLandR(tree, false, true, tree->expType);
         }
 
-        if(tree->child[0]->isArray || tree->child[1]->isArray)
+        if (tree->child[0]->isArray || tree->child[1]->isArray)
         {
             printf("ERROR(%d): The operation '%s' does not work with arrays.\n", tree->lineno, tree->attr.name);
-            errorCount++;
+            numErrors++;
         }
     }
 }

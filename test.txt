@@ -1,0 +1,26 @@
+====================================
+FILE: ../Tests/a2a.c-
+Var: g is array of type char [mem: None loc: -10 size: 10][line: 1]
+.   Child: 0 Const "pipsissewa" of type char [line: 1]
+Sibling: 1 Func: main returns type void [line: 2]
+.   Child: 1 Compound [mem: None loc: 0 size: 1][line: 3]
+.   .   Child: 0 Var: a is array of type char [mem: None loc: 0 size: 10][line: 4]
+.   .   Sibling: 1 Var: b is array of type char [mem: None loc: 0 size: 10][line: 4]
+.   .   Child: 1 Assign: = of type char [line: 6]
+.   .   .   Child: 0 Id: a is array of type char [mem: None loc: 0 size: 1][line: 6]
+.   .   .   Child: 1 Const "manifested" of type char [line: 6]
+.   .   Sibling: 1 Assign: = of type char [line: 7]
+.   .   .   Child: 0 Id: b is array of type char [mem: None loc: 0 size: 1][line: 7]
+.   .   .   Child: 1 Id: g is array of type char [mem: None loc: 0 size: 1][line: 7]
+.   .   Sibling: 2 Assign: = of type char [line: 8]
+.   .   .   Child: 0 Id: b is array of type char [mem: None loc: 0 size: 1][line: 8]
+.   .   .   Child: 1 Id: a is array of type char [mem: None loc: 0 size: 1][line: 8]
+.   .   Sibling: 3 Op: == of type bool [mem: None loc: 0 size: 1][line: 9]
+.   .   .   Child: 0 Id: b is array of type char [mem: None loc: 0 size: 1][line: 9]
+.   .   .   Child: 1 Id: a is array of type char [mem: None loc: 0 size: 1][line: 9]
+.   .   Sibling: 4 Op: > of type bool [mem: None loc: 0 size: 1][line: 10]
+.   .   .   Child: 0 Const "unquestionable" of type char [line: 10]
+.   .   .   Child: 1 Const "transformation" of type char [line: 10]
+Sibling: 2 Var: endOfGlobals of type int [mem: None loc: -11 size: 1][line: 12]
+Number of warnings: 0
+Number of errors: 0

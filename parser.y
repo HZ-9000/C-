@@ -67,12 +67,12 @@ varDeclList   :  varDeclList  ','  varDeclInit  { $$ = addSibling($1, $3); yyerr
                | error  {$$ = NULL; }
                ;
 varDeclInit   :  ID 
-                {$$ = addDeclNode(VarK, $1->linenum);
+                {$$ = addDeclNode(VarK, $1->linenum, 1 , 1);
                  $$->attr.name = strdup($1->strvalue);
                  $$->isStatic = isStatic;
                  $$->expType = setType(savedType);}
               |  ID '[' NUMCONST ']'
-                {$$ = addDeclNode(VarK, $1->linenum);
+                {$$ = addDeclNode(VarK, $1->linenum, $3->nvalue, 1);
                  $$->expType = setType(savedType);
                  $$->isArray = true;
                  $$->isStatic = isStatic;
@@ -80,14 +80,14 @@ varDeclInit   :  ID
                  $$->attr.value = $3->nvalue;
                  $$->attr.name = strdup($1->strvalue);}
               |  ID  ':'  simpleExp 
-                {$$ = addDeclNode(VarK, $1->linenum);
+                {$$ = addDeclNode(VarK, $1->linenum, 1, 1);
                  $$->expType = setType(savedType);
                  $$->isStatic = isStatic;
                  isStatic = false;
                  $$->child[0] = $3;
                  $$->attr.name = strdup($1->strvalue);}
               |  ID '[' NUMCONST ']'  ':'  simpleExp 
-                {$$ = addDeclNode(VarK, $1->linenum);
+                {$$ = addDeclNode(VarK, $1->linenum, $3->nvalue, 1);
                  $$->expType = setType(savedType);
                  $$->isStatic = isStatic;
                  isStatic = false;
@@ -100,13 +100,13 @@ varDeclInit   :  ID
               | error ':' simpleExp { $$ = NULL; yyerrok; }
               ;
 funDecl   :  typeSpec  ID '(' parms ')' compoundStmt 
-                {$$ = addDeclNode(FuncK, $1->linenum);
+                {$$ = addDeclNode(FuncK, $1->linenum, 1, 1);
                  $$->attr.name = strdup($2->strvalue);
                  $$->expType = setType($1->nvalue);
                  $$->child[0] = $4;
                  $$->child[1] = $6;}
            | ID '(' parms ')' compoundStmt
-                {$$ = addDeclNode(FuncK, $1->linenum);
+                {$$ = addDeclNode(FuncK, $1->linenum, 1, 1);
                  $$->child[0] = $3;
                  $$->child[1] = $5;
                  $$->attr.name = strdup($1->strvalue);}
@@ -135,11 +135,11 @@ parmIdList   : parmIdList ',' parmId                   { $$ = addSibling($1, $3)
               | error                                   { $$ = NULL; }
               ; 
 parmId   : ID  
-                {$$ = addDeclNode(ParamK, $1->linenum);
+                {$$ = addDeclNode(ParamK, $1->linenum, 1, 1);
                  $$->attr.name = strdup($1->strvalue);
                  $$->expType = setType(savedType);}
           | ID '[' ']'
-                {$$ = addDeclNode(ParamK, $1->linenum);
+                {$$ = addDeclNode(ParamK, $1->linenum, 1, 1);
                  $$->attr.name = strdup($1->strvalue);
                  $$->expType = setType(savedType);
                  $$->isArray = true;}
@@ -165,7 +165,7 @@ expStmt   :  exp  ';'
             {$$=NULL;}
           ;
 compoundStmt   : LPARAN  localDecls   stmtList  RPARAN
-                    {$$ = addStmtNode(CompoundK, $1->linenum);
+                    {$$ = addStmtNode(CompoundK, $1->linenum, 1, 1);
                      $$->child[0] = $2;
                      $$->child[1] = $3;
                      yyerrok;}
@@ -201,20 +201,20 @@ stmtList   :  stmtList   stmt
                     {$$=NULL;}
             ;
 open_stmt    : IF  simpleExp  THEN  stmt  
-                {$$ = addStmtNode(IfK, $1->linenum);
+                {$$ = addStmtNode(IfK, $1->linenum, 1, 1);
                  $$->child[0] = $2;
                  $$->child[1] = $4;}
              | IF  simpleExp  THEN  closed_stmt  ELSE  open_stmt
-                {$$ = addStmtNode(IfK, $1->linenum);
+                {$$ = addStmtNode(IfK, $1->linenum, 1, 1);
                  $$->child[0] = $2;
                  $$->child[1] = $4;
                  $$->child[2] = $6;}
              | WHILE  simpleExp  DO  open_stmt  
-                {$$ = addStmtNode(WhileK, $1->linenum);
+                {$$ = addStmtNode(WhileK, $1->linenum, 1, 1);
                  $$->child[0] = $2;
                  $$->child[1] = $4;}
              | FOR forName assignOp iterRange  DO  open_stmt
-                {$$ = addStmtNode(ForK, $1->linenum);
+                {$$ = addStmtNode(ForK, $1->linenum, 1, 1);
                  $$->child[0] = $2;
                  $$->child[1] = $4;
                  $$->child[2] = $6;}
@@ -226,16 +226,16 @@ open_stmt    : IF  simpleExp  THEN  stmt
              ; 
 closed_stmt   : non_if
               | IF  simpleExp  THEN  closed_stmt  ELSE  closed_stmt
-                    {$$ = addStmtNode(IfK, $1->linenum);
+                    {$$ = addStmtNode(IfK, $1->linenum, 1, 1);
                      $$->child[0] = $2;
                      $$->child[1] = $4;
                      $$->child[2] = $6;}
               | WHILE  simpleExp  DO  closed_stmt  
-                    {$$ = addStmtNode(WhileK, $1->linenum);
+                    {$$ = addStmtNode(WhileK, $1->linenum, 1, 1);
                      $$->child[0] = $2;
                      $$->child[1] = $4;}
               | FOR forName assignOp iterRange  DO  closed_stmt
-                    {$$ = addStmtNode(ForK, $1->linenum);
+                    {$$ = addStmtNode(ForK, $1->linenum, 1, 1);
                      $$->child[0] = $2;
                      $$->child[1] = $4;
                      $$->child[2] = $6;}
@@ -248,16 +248,16 @@ closed_stmt   : non_if
 	      | FOR error                           { $$ = NULL; }
               ;
 forName     : ID 
-                {$$ = addDeclNode(VarK, $1->linenum);
+                {$$ = addDeclNode(VarK, $1->linenum, 1, 1);
                  $$->expType = Integer;
                  $$->attr.name = strdup($1->strvalue);}
             ;
 iterRange   :  simpleExp  TO  simpleExp  
-                {$$ = addStmtNode(RangeK, $2->linenum);
+                {$$ = addStmtNode(RangeK, $2->linenum, 1, 1);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
             |  simpleExp  TO  simpleExp  BY  simpleExp 
-                {$$ = addStmtNode(RangeK, $2->linenum);
+                {$$ = addStmtNode(RangeK, $2->linenum, 1, 1);
                  $$->child[0] = $1;
                  $$->child[1] = $3;
                  $$->child[2] = $5;}
@@ -266,28 +266,28 @@ iterRange   :  simpleExp  TO  simpleExp
               | simpleExp TO simpleExp BY error         { $$ = NULL; }
             ;
 returnStmt   : RETURN ';' 
-                {$$ = addStmtNode(ReturnK, $1->linenum);}
+                {$$ = addStmtNode(ReturnK, $1->linenum, 1, 1);}
              | RETURN  exp  ';'
-                {$$ = addStmtNode(ReturnK, $1->linenum);
+                {$$ = addStmtNode(ReturnK, $1->linenum, 1, 1);
                  $$->child[0] = $2;
                  yyerrok;}
              | RETURN error ';'          { $$ = NULL; yyerrok; }
              ;
 breakStmt   : BREAK ';'
-                {$$ = addStmtNode(BreakK, $1->linenum);}
+                {$$ = addStmtNode(BreakK, $1->linenum, 1, 1);}
             ;
 //-----------------------------------------------------
 exp   :   mutable   assignOp exp  
-            {$$ = addExpNode(AssignK, $2->linenum, Equal);
+            {$$ = addExpNode(AssignK, $2->linenum, Equal, 1, 1);
              $$->attr.name = strdup($2->tokenstr);
              $$->child[0] = $1;
              $$->child[1] = $3;}
        |  mutable INC
-            {$$ = addExpNode(AssignK, $2->linenum, Integer);
+            {$$ = addExpNode(AssignK, $2->linenum, Integer, 1, 1);
              $$->attr.name = strdup($2->tokenstr);
              $$->child[0] = $1;}
        |  mutable DEC
-            {$$ = addExpNode(AssignK, $2->linenum, Integer);
+            {$$ = addExpNode(AssignK, $2->linenum, Integer, 1, 1);
              $$->attr.name = strdup($2->tokenstr);
              $$->child[0] = $1;}
        |  simpleExp
@@ -304,7 +304,7 @@ assignOp : MULASS { $$ = $1; }
          | ASSNG { $$ = $1; }
          ;
 simpleExp   :  simpleExp  OR  andExp  
-                    {$$ = addExpNode(OpK, $2->linenum, Boolean);
+                    {$$ = addExpNode(OpK, $2->linenum, Boolean, 1, 1);
                      $$->attr.name = strdup($2->tokenstr);
                      $$->child[0] = $1;
                      $$->child[1] = $3;}
@@ -313,7 +313,7 @@ simpleExp   :  simpleExp  OR  andExp
              | simpleExp OR error  { $$ = NULL; };
              ; 
 andExp   :  andExp  AND  unaryRelExp 
-                {$$ = addExpNode(OpK, $2->linenum, Boolean);
+                {$$ = addExpNode(OpK, $2->linenum, Boolean, 1, 1);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
@@ -322,7 +322,7 @@ andExp   :  andExp  AND  unaryRelExp
           | andExp AND error { $$ = NULL; }
           ; 
 unaryRelExp   : NOT  unaryRelExp 
-                    {$$ = addExpNode(OpK, $1->linenum, Boolean);
+                    {$$ = addExpNode(OpK, $1->linenum, Boolean, 1, 1);
                      $$->attr.name = strdup($1->tokenstr);
                      $$->child[0] = $2;}
                |  relExp
@@ -330,7 +330,7 @@ unaryRelExp   : NOT  unaryRelExp
                 | NOT error  { $$ = NULL; }
                ; 
 relExp   :  sumExp   relOp   sumExp 
-                {$$ = addExpNode(OpK, $2->linenum, Boolean);
+                {$$ = addExpNode(OpK, $2->linenum, Boolean, 1, 1);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
@@ -344,12 +344,12 @@ relOp    :  REL  { $$ = $1; }
          |  EQ   { $$ = $1; }
          ;
 sumExp   :  sumExp   SUMOP   mulExp 
-                {$$ = addExpNode(OpK, $2->linenum, Integer);
+                {$$ = addExpNode(OpK, $2->linenum, Integer, 1, 1);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
          |  sumExp   SUB   mulExp 
-                {$$ = addExpNode(OpK, $2->linenum, Integer);
+                {$$ = addExpNode(OpK, $2->linenum, Integer, 1, 1);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
@@ -359,12 +359,12 @@ sumExp   :  sumExp   SUMOP   mulExp
           | sumExp SUB error { $$ = NULL; }
           ;
 mulExp   :  mulExp   MULOP   unaryExp 
-                {$$ = addExpNode(OpK, $2->linenum, Integer);
+                {$$ = addExpNode(OpK, $2->linenum, Integer, 1, 1);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
          |  mulExp   MUL   unaryExp 
-                {$$ = addExpNode(OpK, $2->linenum, Integer);
+                {$$ = addExpNode(OpK, $2->linenum, Integer, 1, 1);
                  $$->attr.name = strdup($2->tokenstr);
                  $$->child[0] = $1;
                  $$->child[1] = $3;}
@@ -374,15 +374,15 @@ mulExp   :  mulExp   MULOP   unaryExp
           | mulExp MUL error { $$ = NULL; }
           ;
 unaryExp   :  UNARYOP unaryExp
-                {$$ = addExpNode(OpK, $1->linenum, Integer);
+                {$$ = addExpNode(OpK, $1->linenum, Integer, 1, 1);
                  $$->attr.name = strdup($1->tokenstr);
                  $$->child[0] = $2;}
             |   MUL unaryExp
-                {$$ = addExpNode(OpK, $1->linenum, Integer);
+                {$$ = addExpNode(OpK, $1->linenum, Integer, 1, 1);
                  $$->attr.name = strdup("sizeof");
                  $$->child[0] = $2;}
             |   SUB unaryExp
-                {$$ = addExpNode(OpK, $1->linenum, Integer);
+                {$$ = addExpNode(OpK, $1->linenum, Integer, 1, 1);
                  $$->attr.name = strdup("chsign");
                  $$->child[0] = $2;}
             |  factor
@@ -397,16 +397,16 @@ factor   :  mutable
                 {$$ = $1;}
           ; 
 mutable   : ID 
-                {$$ = addExpNode(IdK, $1->linenum, setType(savedType));
+                {$$ = addExpNode(IdK, $1->linenum, setType(savedType), 1, 1);
                  $$->attr.name = strdup($1->strvalue);}
            | name '['  exp  ']'
-                {$$ = addExpNode(OpK, line, Void);
+                {$$ = addExpNode(OpK, line, Void, 1, 1);
                  $$->child[0] = $1;
                  $$->child[1] = $3;
                  $$->attr.name = strdup("[");}
            ;
 name       : ID 
-                {$$ = addExpNode(IdK, $1->linenum, Integer);
+                {$$ = addExpNode(IdK, $1->linenum, Integer, 1, 1);
                  $$->attr.name = strdup($1->strvalue);}
            ;
 immutable   : '('  exp  ')' 
@@ -418,7 +418,7 @@ immutable   : '('  exp  ')'
               | '(' error  { $$ = NULL; }
              ; 
 call   : ID '('  args  ')'
-            {$$ = addExpNode(CallK, $1->linenum, Void);
+            {$$ = addExpNode(CallK, $1->linenum, Void, 1, 1);
              $$->attr.name = strdup($1->strvalue);
              $$->child[0] = $3;}
         | error '('   { $$ = NULL; yyerrok; }
@@ -434,17 +434,17 @@ argList   :  argList  ','  exp  { $$ = addSibling($1, $3); yyerrok; }
                 {$$ = $1;}
            ; 
 constant   : NUMCONST 
-                {$$ = addExpNode(ConstantK, $1->linenum, Integer);
+                {$$ = addExpNode(ConstantK, $1->linenum, Integer, 1, 1);
                  $$->attr.value = $1->nvalue;}
             | CHARCONST 
-                {$$ = addExpNode(ConstantK, $1->linenum, Char);
+                {$$ = addExpNode(ConstantK, $1->linenum, Char, 1, 1);
                  $$->attr.name = strdup($1->tokenstr);}
             | STRINGCONST 
-                {$$ = addExpNode(ConstantK, $1->linenum, Char);
+                {$$ = addExpNode(ConstantK, $1->linenum, Char, 1, 1);
                  $$->attr.string = strdup($1->strvalue);
                  $$->isArray = true;}
             | BOOLCONST
-                {$$ = addExpNode(ConstantK, $1->linenum, Boolean);
+                {$$ = addExpNode(ConstantK, $1->linenum, Boolean, 1, 1);
                  $$->attr.value = $1->nvalue;}
             ; 
 %%
