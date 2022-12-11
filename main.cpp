@@ -4,10 +4,12 @@
 #include "yyerror.h"
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 extern TreeNode *tree;
 extern int yyparse();
 extern FILE *yyin;
+FILE *code;
 extern int yydebug;
 extern int numErrors;
 extern int warningCount;
@@ -65,23 +67,31 @@ int main(int argc, char *argv[])
         }
         if ((yyin = fopen(argv[argc - 1], "r")))
         {
-            printf("====================================\n");
-            printf("FILE: %s\n", argv[argc - 1]);
             yyparse();
 
-            if(numErrors == 0)
+            if (numErrors == 0)
             {
-                
                 semanticAnalysis(tree, symTabDebug);
 
-                if (printAST && numErrors == 0)
-                    printTree(tree, 0, printASTAnnotated, printMemory);
+                if (numErrors == 0)
+                {
+                    if (printAST)
+                        printTree(tree, 0, printASTAnnotated, printMemory);
+
+                    char *filename = strdup(argv[argc - 1]);
+                    filename[strlen(argv[argc - 1]) - 2] = 't';
+                    filename[strlen(argv[argc - 1]) - 1] = 'm';
+
+                    code = fopen(filename, "w");
+                    
+                    code_generation(tree);
+                }
             }
         }
         else
         {
             // fail
-            printf("ERROR(ARGLIST): source file \"%s\" could not be opened.\n", argv[argc-1]);
+            printf("ERROR(ARGLIST): source file \"%s\" could not be opened.\n", argv[argc - 1]);
             numErrors++;
         }
     }

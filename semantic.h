@@ -1,5 +1,8 @@
 #include "symbolTable.h"
 #include "AST.h"
+#include "emitcode.h"
+
+void code_generation(TreeNode *tree);
 
 void semanticAnalysis(TreeNode *tree, bool debug);
 void symtabTraverse(TreeNode *tree, bool isFunc, bool warn);
